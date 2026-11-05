@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SCP: Breach Response</title><meta name="color-scheme" content="dark">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#9fe8b0}
+canvas{display:block}.scr{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(#1a0707,#020202 75%);text-align:center;padding:20px;z-index:20;overflow:auto}
+.scr.on{display:flex}h1{font-size:clamp(26px,5vw,56px);letter-spacing:.2em;color:#d33;margin:0;text-shadow:0 0 18px #800}
+h2{color:#d33;letter-spacing:.15em}.sub{color:#8a8;margin:8px 0 28px;font-style:italic}
+button{background:#0b140d;color:#9fe8b0;border:1px solid #3a6;padding:12px 26px;margin:6px;font:inherit;letter-spacing:.12em;cursor:pointer;min-width:260px}
+button:hover{background:#1c3a24;color:#fff}.card{border:1px solid #3a6;padding:14px 20px;text-align:left;max-width:640px;background:#06100a;margin:10px;line-height:1.5;font-size:14px}
+.card b{color:#fc6}.rad{color:#7cf;max-width:640px;font-size:14px;line-height:1.5;margin:6px}
+#hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:5;font-size:14px;text-shadow:0 0 4px #000}
+#obj{position:absolute;top:14px;left:16px;background:#000a;padding:8px 12px;border-left:3px solid #3a6;max-width:340px}
+#radio{position:absolute;top:14px;right:16px;max-width:360px;color:#7cf;background:#000a;padding:8px 12px;display:none;border-right:3px solid #7cf}
+#prompt{position:absolute;top:58%;width:100%;text-align:center;color:#fff;font-size:16px}
+#cross{position:absolute;top:50%;left:50%;width:4px;height:4px;background:#9fe8b0aa;border-radius:50%;margin:-2px}
+#bars{position:absolute;bottom:16px;left:16px;background:#000a;padding:8px 12px}
+.bar{width:150px;height:8px;background:#222;margin:4px 0}.bar i{display:block;height:100%;background:#3c6}
+#blink{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);text-align:center;background:#000a;padding:6px 12px}
+#blink .bar{width:220px}#blink i{background:#6cf}
+#gl{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .3s;background:repeating-linear-gradient(0deg,#0a3a1a33 0 2px,#00000033 2px 4px),radial-gradient(#0a3a1a55,#021a0aee 95%)}#eyes{position:fixed;inset:0;background:#000;opacity:0;transition:opacity .08s;z-index:6;pointer-events:none}
+#fear{position:fixed;inset:0;box-shadow:inset 0 0 160px #f00;opacity:0;z-index:4;pointer-events:none}
+#doc{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:560px;background:#031008f0;border:1px solid #3a6;padding:18px;z-index:8;display:none;white-space:pre-wrap;line-height:1.5}
+#tab{position:fixed;inset:0;background:#000d;z-index:7;display:none;padding:60px;white-space:pre-wrap;line-height:1.6}
+</style></head><body>
+<div id="gl"></div><div id="eyes"></div><div id="fear"></div>
+<div id="hud"><div id="obj"></div><div id="radio"></div><div id="cross"></div><div id="prompt"></div>
+<div id="bars">SALUD<div class="bar"><i id="hp" style="width:100%"></i></div>RESISTENCIA<div class="bar"><i id="st" style="width:100%"></i></div><div id="dbg" style="color:#777;font-size:11px"></div><span style="color:#888">[F3] debug · [F] linterna · [TAB] objetivos · [M] sonido</span></div>
+<div id="blink">PARPADEO [ESPACIO]<div class="bar"><i id="bl" style="width:0"></i></div></div></div>
+<div id="doc"></div><div id="tab"></div>
+
+<div class="scr on" id="s-menu"><h1>SCP: BREACH RESPONSE</h1><div class="sub">«La contención es tu única prioridad».</div>
+<button id="b-m173">MISIÓN: SCP-173</button><button id="b-m096">MISIÓN: SCP-096</button><button id="b-ctl">CONTROLES</button><button id="b-arc">ARCHIVOS SCP</button>
+<div class="rad" style="color:#a44;margin-top:20px">▌ FUNDACIÓN SCP — ACCESO RESTRINGIDO — NIVEL 3 ▐</div></div>
+<div class="scr" id="s-info"><h2 id="i-t"></h2><div class="card" id="i-b"></div><button id="b-back">VOLVER</button></div>
+<div class="scr" id="s-brief"><h2>TRANSMISIÓN ENTRANTE</h2>
+<div class="rad">«Unidad NTF, atención. Se ha producido una brecha de contención. La instalación permanece en confinamiento. Tu misión consiste en localizar la anomalía asignada, seguir el protocolo correspondiente y restablecer la contención. No improvises con las entidades. Confirma el estado de la misión cuando hayas terminado».</div>
+<div class="card" id="asg"></div><button id="b-go">DESPLEGAR</button></div>
+<div class="scr" id="s-pause"><h2>PAUSA</h2><button id="b-res">CONTINUAR</button><button id="b-rst">REINICIAR MISIÓN</button><button id="b-menu">MENÚ PRINCIPAL</button></div>
+<div class="scr" id="s-end"><h2 id="e-t"></h2><div class="card" id="e-b"></div><button id="b-retry">REINTENTAR MISIÓN</button><button id="b-again">NUEVA MISIÓN (SCP ALEATORIO)</button><button id="b-emenu">MENÚ</button></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,$=i=>document.getElementById(i);
+const ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,1.5));ren.setSize(innerWidth,innerHeight);document.body.prepend(ren.domElement);
+const sc=new T.Scene();sc.background=new T.Color(0x030405);sc.fog=new T.FogExp2(0x030405,.032);
+const cam=new T.PerspectiveCamera(72,innerWidth/innerHeight,.05,80);cam.rotation.order='YXZ';sc.add(cam);
+addEventListener('resize',()=>{ren.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()});
+sc.add(new T.AmbientLight(0x334455,.55));
+const fl=new T.SpotLight(0xffffff,1.3,26,.55,.5);fl.position.set(0,0,0);fl.target.position.set(0,0,-5);cam.add(fl,fl.target);let flOn=true;
+
+// ---------- Mundo ----------
+function ctex(base,v){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,64,64);for(let i=0;i<500;i++){const k=Math.random()*v|0;g.fillStyle=`rgba(${k},${k},${k},.12)`;g.fillRect(Math.random()*64,Math.random()*64,2,2)}const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(4,2);return t}
+const M={floor:new T.MeshStandardMaterial({map:ctex('#2b2e31',90),roughness:.9}),wall:new T.MeshStandardMaterial({map:ctex('#575c62',120),roughness:.95}),
+ceil:new T.MeshStandardMaterial({color:0x1a1c1e}),door:new T.MeshStandardMaterial({color:0x8a7020,metalness:.6,roughness:.5}),crate:new T.MeshStandardMaterial({color:0x4a4030,roughness:.8}),
+pipe:new T.MeshStandardMaterial({color:0x666a70,metalness:.7,roughness:.4}),strip:new T.MeshStandardMaterial({color:0xaa1111,emissive:0x550000}),lamp:new T.MeshStandardMaterial({color:0xddeeff,emissive:0xaabbcc})};
+function fixUV(g,w,h,d){const uv=g.attributes.uv,dm=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let i=0;i<4;i++){const k=f*4+i;uv.setXY(k,uv.getX(k)*dm[f][0]/2,uv.getY(k)*dm[f][1]/2)}}
+const walls=[],doors=[],lights=[],occ=[];
+function slab(x1,z1,x2,z2,y0,y1,m,solid=true){const g=new T.BoxGeometry(x2-x1,y1-y0,z2-z1);fixUV(g,x2-x1,y1-y0,z2-z1);const o=new T.Mesh(g,m);o.matrixAutoUpdate=false;o.position.set((x1+x2)/2,(y0+y1)/2,(z1+z2)/2);o.updateMatrix();sc.add(o);if(solid){walls.push({x1,x2,z1,z2});occ.push(o)}return o}
+// ===== PLANO DEL COMPLEJO: anillo de seguridad + cruce central + 20 salas + 4 puertas de sector =====
+const WH=3.6,TH=.3,GL=new T.MeshStandardMaterial({color:0x6f9a9a,transparent:true,opacity:.22,roughness:.1,metalness:.3});
+function mkMat(kind,col){const[c,g]=ctx2(256,256);g.fillStyle=col;g.fillRect(0,0,256,256);
+ for(let i=0;i<1400;i++){const k=Math.random()*70|0;g.fillStyle='rgba('+k+','+k+','+k+',.16)';g.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,1+Math.random()*3)}
+ g.strokeStyle='rgba(0,0,0,.45)';g.lineWidth=2;
+ if(kind==='block'){for(let y=0;y<256;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(256,y);g.stroke();for(let x=(y/32%2)*32;x<256;x+=64){g.beginPath();g.moveTo(x,y);g.lineTo(x,y+32);g.stroke()}}}
+ else if(kind==='panel'){for(let y=0;y<256;y+=128)for(let x=0;x<256;x+=128){g.strokeRect(x+2,y+2,124,124);g.fillStyle='rgba(255,255,255,.12)';for(const[a,b]of[[8,8],[116,8],[8,116],[116,116]]){g.beginPath();g.arc(x+a,y+b,3,0,6.3);g.fill()}}}
+ else if(kind==='tile'||kind==='floorc'){const s=kind==='tile'?64:128;for(let p=0;p<256;p+=s){g.beginPath();g.moveTo(p,0);g.lineTo(p,256);g.moveTo(0,p);g.lineTo(256,p);g.stroke()}}
+ else if(kind==='plate'){g.strokeStyle='rgba(255,255,255,.14)';for(let y=0;y<256;y+=16)for(let x=0;x<256;x+=16){g.beginPath();g.moveTo(x+(y/16%2)*8,y);g.lineTo(x+(y/16%2)*8+7,y+7);g.stroke()}}
+ else if(kind==='conc'){for(let i=0;i<5;i++){g.fillStyle='rgba(20,15,10,.10)';g.fillRect(Math.random()*256,0,10+Math.random()*30,256)}g.beginPath();g.moveTo(0,128);g.lineTo(256,128);g.stroke()}
+ else if(kind==='ceil'){for(let p=0;p<256;p+=64){g.beginPath();g.moveTo(p,0);g.lineTo(p,256);g.moveTo(0,p);g.lineTo(256,p);g.stroke()}}
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;return new T.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:1.6,roughness:kind==='floorc'?.5:.92,metalness:kind==='plate'||kind==='panel'?.3:.04})}
+const sm_=(c,m,r)=>new T.MeshStandardMaterial({color:c,metalness:m,roughness:r});
+const MT={blk:mkMat('block','#666a6f'),adm:mkMat('block','#7a7d7f'),lab:mkMat('panel','#8d949a'),cell:mkMat('conc','#3c3f43'),sec:mkMat('panel','#4a5058'),mnt:mkMat('conc','#524d44'),fl:mkMat('floorc','#2f3235'),tile:mkMat('tile','#3f524b'),plate:mkMat('plate','#3a3c40'),car:mkMat('conc','#2b323b'),ceil:mkMat('ceil','#2b2d30'),
+ bench:sm_(0x8a9096,.5,.5),wood:sm_(0x4a3a2c,0,.8),locker:sm_(0x3f5a66,.4,.6),gen:sm_(0x6a5a2a,.4,.7),shelf:sm_(0x58606a,.5,.6),bed:sm_(0xb9c3c4,0,.7)};
+const TY={start:['blk','car'],quar:['lab','tile'],adm:['adm','car'],com:['adm','fl'],sec:['sec','plate'],lab:['lab','tile'],sto:['mnt','fl'],mnt:['mnt','plate'],cell:['cell','plate']};
+const DEFS=[
+ [2,14,14,38,'E','start','Dormitorio NTF (zona segura)'],[2,38,14,62,'E','quar','Zona de Cuarentena'],
+ [14,2,32,14,'S','adm','Oficinas Administrativas'],[32,2,50,14,'S','com','Comedor y Sala de Descanso'],[50,2,68,14,'S','sec','Centro de Vigilancia'],[68,2,86,14,'S','sec','Comunicaciones y Armería'],
+ [14,62,32,74,'N','sto','Almacén General'],[32,62,50,74,'N','mnt','Generadores'],[50,62,68,74,'N','mnt','Sala Técnica'],[68,62,86,74,'N','com','Vestuarios y Taquillas'],
+ [86,14,98,38,'W','cell','Celda SCP-173'],[86,38,98,62,'W','cell','Celda SCP-096'],
+ [18,18,33,36,'N','lab','Laboratorio A'],[33,18,48,36,'E','lab','Laboratorio B'],[52,18,67,36,'W','lab','Sala de An\u00e1lisis'],[67,18,82,36,'N','quar','Laboratorio de Alto Riesgo'],
+ [18,40,33,58,'S','com','Taquillas y Descanso'],[33,40,48,58,'E','adm','Archivo Central'],[52,40,67,58,'W','sto','Almacén de Material'],[67,40,82,58,'S','sec','Sala de Control']];
+const R=[],segs=new Set(),CELL173=10,CELL096=11,panels={},TERM={x:0,z:0},START={x:0,z:0,yaw:0};
+function lightDef(x,y,z,col,b,f){lights.push({L:{intensity:b},b,f,x,y,z,col})}
+const POOL=[];for(let i=0;i<8;i++){const L=new T.PointLight(0xffffff,0,15);sc.add(L);POOL.push({L,idx:-1})}
+let lpT=0;
+function poolLights(dt){lpT-=dt;if(lpT<=0){lpT=.12;const c=lights.map((l,i)=>[(l.x-P.x)*(l.x-P.x)+(l.z-P.z)*(l.z-P.z),i]).sort((a,b)=>a[0]-b[0]);for(let k=0;k<POOL.length;k++){const l=lights[c[k][1]];POOL[k].idx=c[k][1];POOL[k].L.position.set(l.x,l.y,l.z);POOL[k].L.color.setHex(l.col)}}
+ for(const p of POOL)p.L.intensity=p.idx>=0?lights[p.idx].L.intensity:0}
+slab(0,0,100,76,-.2,0,MT.fl,false);slab(0,0,100,76,WH,WH+.2,MT.ceil,false);
+function dn(D,x,z){return D.ax==='x'?Math.abs(z-D.cz):Math.abs(x-D.cx)}
+function dt_(D,x,z){return D.ax==='x'?Math.abs(x-D.cx):Math.abs(z-D.cz)}
+function wseg(ax,pos,a,b,mat){if(b-a<.02)return;const k=ax+pos+':'+a+':'+b;if(segs.has(k))return;segs.add(k);const t=TH/2;if(ax==='x')slab(a-t,pos-t,b+t,pos+t,0,WH,mat);else slab(pos-t,a-t,pos+t,b+t,0,WH,mat)}
+function wwin(ax,pos,a,b,mat){const t=TH/2,mk=(y0,y1,s)=>ax==='x'?slab(a,pos-t,b,pos+t,y0,y1,mat,s):slab(pos-t,a,pos+t,b,y0,y1,mat,s);mk(0,1,true);mk(2.6,WH,false);
+ const gl=new T.Mesh(new T.BoxGeometry(ax==='x'?b-a:.06,1.6,ax==='x'?.06:b-a),GL);gl.position.set(ax==='x'?(a+b)/2:pos,1.8,ax==='x'?pos:(a+b)/2);sc.add(gl);
+ for(const y of[1,2.55])ax==='x'?slab(a,pos-t-.02,b,pos+t+.02,y,y+.06,M.pipe,false):slab(pos-t-.02,a,pos+t+.02,b,y,y+.06,M.pipe,false)}
+function mkDoor(idx,ax,cx,cz,w,nx,nz){const t=.12,b=ax==='x'?{x1:cx-w/2,x2:cx+w/2,z1:cz-t,z2:cz+t}:{x1:cx-t,x2:cx+t,z1:cz-w/2,z2:cz+w/2};
+ const m=slab(b.x1,b.z1,b.x2,b.z2,0,2.6,M.door.clone(),false);m.matrixAutoUpdate=true;occ.push(m);
+ for(const sg of[-1,1]){const o=w/2+.1;ax==='x'?slab(cx+sg*o-.1,cz-.2,cx+sg*o+.1,cz+.2,0,2.75,M.pipe,false):slab(cx-.2,cz+sg*o-.1,cx+.2,cz+sg*o+.1,0,2.75,M.pipe,false)}
+ const led=new T.Mesh(new T.BoxGeometry(ax==='x'?.5:.06,.12,ax==='x'?.06:.5),new T.MeshBasicMaterial({color:0x22cc55}));led.position.set(cx+nx*.22,2.45,cz+nz*.22);sc.add(led);
+ const px=cx+(ax==='x'?w/2+.5:nx*.2),pz=cz+(ax==='x'?nz*.2:w/2+.5);slab(px-.12,pz-.12,px+.12,pz+.12,1.1,1.5,M.pipe,false);const rd=new T.Mesh(new T.BoxGeometry(.14,.1,.14),new T.MeshBasicMaterial({color:0x33aaff}));rd.position.set(px,1.35,pz);sc.add(rd);
+ doors[idx]={led,m,...b,cx,cz,ax,w,nx,nz,p:0,open:false,locked:false,elec:false}}
+function camMesh(x,z,y,ry){const b=new T.Mesh(new T.BoxGeometry(.2,.15,.35),M.pipe);b.position.set(x,y,z);b.rotation.y=ry;sc.add(b);const l=new T.Mesh(new T.BoxGeometry(.05,.05,.06),new T.MeshBasicMaterial({color:0xff2222}));l.position.set(x+Math.sin(ry)*.2,y,z+Math.cos(ry)*.2);sc.add(l)}
+function furn(r){const{x0,z0,x1,z1,type,name}=r,W=x1-x0,cx=(x0+x1)/2,cz=(z0+z1)/2,k=r.ko;
+ const put=(x,z,w,d,h,m,col)=>{if(x-w/2<x0+.2||x+w/2>x1-.2||z-d/2<z0+.2||z+d/2>z1-.2)return;if(x+w/2>k.x0&&x-w/2<k.x1&&z+d/2>k.z0&&z-d/2<k.z1)return;slab(x-w/2,z-d/2,x+w/2,z+d/2,0,h,m);if(col){const s=new T.Mesh(new T.BoxGeometry(.5,.32,.04),new T.MeshBasicMaterial({color:col}));s.position.set(x,h+.3,z);s.rotation.y=Math.atan2(cx-x,cz-z);sc.add(s)}};
+ const rn=(l,d,h,m,c)=>{for(let x=x0+1;x+l<=x1-1;x+=l+.15)put(x+l/2,z0+.2+d/2,l,d,h,m,c)},rs=(l,d,h,m,c)=>{for(let x=x0+1;x+l<=x1-1;x+=l+.15)put(x+l/2,z1-.2-d/2,l,d,h,m,c)},rw=(l,d,h,m,c)=>{for(let z=z0+1;z+l<=z1-1;z+=l+.15)put(x0+.2+d/2,z+l/2,d,l,h,m,c)},re=(l,d,h,m,c)=>{for(let z=z0+1;z+l<=z1-1;z+=l+.15)put(x1-.2-d/2,z+l/2,d,l,h,m,c)};
+ if(type==='lab'){rn(1.9,.7,.95,MT.bench,0x66ccff);rs(1.9,.7,.95,MT.bench,0x66ffcc);put(cx,cz,Math.min(W-5,9),1.2,.95,MT.bench,0x88ddff);rw(1.1,.5,1.95,MT.locker)}
+ else if(type==='quar'){for(let i=0;i<4;i++){put(x0+3+i*((W-6)/3),z0+2.2,1.9,.9,.6,MT.bed);put(x0+3+i*((W-6)/3),z1-2.2,1.9,.9,.6,MT.bed)}rw(1.1,.5,1.9,MT.locker)}
+ else if(type==='adm'&&/Oficinas/.test(name)){for(let i=0;i<3;i++)for(let j=0;j<2;j++)put(x0+3.2+i*4.6,z0+3+j*4,1.7,.8,.75,MT.wood,0x77aaff);re(1,.5,1.8,MT.shelf)}
+ else if(type==='adm'){rn(1.2,.5,1.9,MT.shelf);rs(1.2,.5,1.9,MT.shelf);put(cx,cz,3.2,1,.75,MT.wood,0x77aaff)}
+ else if(type==='sec'){rn(2,.8,1,MT.bench,0x33ff77);rs(1.2,.5,1.9,MT.locker);for(let x=x0+1.2;x<x1-1.2;x+=1.2){const s=new T.Mesh(new T.BoxGeometry(1,.6,.05),new T.MeshBasicMaterial({color:[0x33ff77,0x33aaff,0xffaa33][(x|0)%3]}));s.position.set(x,1.9,z0+.25);sc.add(s)}}
+ else if(type==='sto'){for(let z=z0+2.4;z<z1-1.6;z+=2.7)put(cx,z,W-4.6,.6,2.2,MT.shelf);put(x0+1.1,z1-1.1,.9,.9,.9,M.crate)}
+ else if(type==='mnt'){put(x0+3,cz,2.6,1.7,2.1,MT.gen);put(x1-3,cz,2.6,1.7,2.1,MT.gen);rn(1.3,.45,2.1,MT.locker,0xff5533)}
+ else if(type==='com'&&/Comedor/.test(name)){for(let i=0;i<3;i++)for(let j=0;j<2;j++)put(x0+3.5+i*5.2,z0+3.2+j*4.2,2.4,.9,.75,MT.wood)}
+ else if(type==='com'){rw(.6,.5,1.9,MT.locker);re(.6,.5,1.9,MT.locker);put(cx,cz,3.4,.5,.45,MT.wood)}
+ else if(type==='start'){rn(2,1,.6,MT.bed);rs(.6,.5,1.9,MT.locker)}}
+DEFS.forEach((d,i)=>{const[x0,z0,x1,z1,side,type,name]=d,w=type==='cell'?3.2:type==='sto'?3:2.4,cx=(x0+x1)/2,cz=(z0+z1)/2,[wm,fm]=TY[type],r={x0,z0,x1,z1,side,type,name,w,i};R.push(r);
+ slab(x0,z0,x1,z1,-.2,.005,MT[fm],false);
+ const[ax,pos,c,nx,nz]={S:['x',z1,cx,0,1],N:['x',z0,cx,0,-1],E:['z',x1,cz,1,0],W:['z',x0,cz,-1,0]}[side];
+ r.pin={x:ax==='x'?c:pos-nx*3.2,z:ax==='x'?pos-nz*3.2:c};
+ r.ko=ax==='x'?{x0:c-w/2-.9,x1:c+w/2+.9,z0:Math.min(pos,pos-nz*3.8),z1:Math.max(pos,pos-nz*3.8)}:{x0:Math.min(pos,pos-nx*3.8),x1:Math.max(pos,pos-nx*3.8),z0:c-w/2-.9,z1:c+w/2+.9};
+ const g0=c-w/2,g1=c+w/2,wins=type!=='cell'?[]:i===CELL173?[[g0-6.5,g0-1.5],[g1+1.5,g1+6.5]]:[[g1+2,g1+4.5]];
+ const run=(ax_,p,a,b)=>{let cur=a;for(const[wa,wb]of wins)if(wa>=a-.01&&wb<=b+.01){wseg(ax_,p,cur,wa,MT[wm]);wwin(ax_,p,wa,wb,MT[wm]);cur=wb}wseg(ax_,p,cur,b,MT[wm])};
+ for(const[a_,p,a,b,sd]of[['x',z0,x0,x1,'N'],['x',z1,x0,x1,'S'],['z',x0,z0,z1,'W'],['z',x1,z0,z1,'E']]){if(sd!==side)wseg(a_,p,a,b,MT[wm]);else{run(a_,p,a,g0);run(a_,p,g1,b)}}
+ ax==='x'?slab(g0,pos-TH/2,g1,pos+TH/2,2.6,WH,MT[wm],false):slab(pos-TH/2,g0,pos+TH/2,g1,2.6,WH,MT[wm],false);
+ mkDoor(i,ax,ax==='x'?c:pos,ax==='x'?pos:c,w,nx,nz);
+ const lc={lab:[0xbfd8ff,.95],quar:[0xcfe8ff,.8],sec:[0xaad0ff,.8],adm:[0xfff0d8,.8],com:[0xfff0d8,.8],sto:[0xe6e0c8,.7],mnt:[0xffd9a0,.7],start:[0xfff6e0,.9],cell:i===CELL173?[0xffffff,1.1]:[0xcc8866,.45]}[type];
+ lightDef(cx,3.2,cz,lc[0],lc[1],Math.random()<.35&&type!=='cell');slab(cx-.8,cz-.3,cx+.8,cz+.3,WH-.06,WH,i===CELL096?M.strip:M.lamp,false);
+ if(type==='cell'){if(i===CELL173)for(let k=1;k<4;k++)slab(x0,z0+k*6-.2,x1,z0+k*6+.2,3.1,3.45,M.pipe,false);camMesh(x1-.5,z0+.6,3.2,Math.PI*.75);camMesh(x1-.5,z1-.6,3.2,Math.PI*1.25)}
+ if(type==='sec')camMesh(x1-.5,z0+.6,3.2,Math.PI*.75);
+ furn(r)});
+{const r=R[0],cz=(r.z0+r.z1)/2;slab(r.x0+.2,cz-.7,r.x0+.9,cz+.7,0,1.25,M.pipe);const sc_=new T.Mesh(new T.PlaneGeometry(1,.6),new T.MeshBasicMaterial({color:0x33ffcc}));sc_.position.set(r.x0+.92,1.0,cz);sc_.rotation.y=Math.PI/2;sc.add(sc_);TERM.x=r.x0+1.8;TERM.z=cz;
+ START.yaw=-Math.PI/2;for(let n=0;n<60;n++){const x=r.x0+5+(n%6),z=cz+((n/6|0)-4);if(!solidAt(x,z,.7)){START.x=x;START.z=z;break}}}
+[[20,'z',32,16,1,0],[21,'z',45,60,-1,0],[22,'x',16,44,0,1],[23,'x',84,44,0,-1]].forEach(([idx,ax,cx,cz,nx,nz])=>mkDoor(idx,ax,cx,cz,3.7,nx,nz));
+// pasillos: luces (blancas y de emergencia rojas), conductos, tuberías, extintores y c\u00e1maras
+{const cl=[];for(let x=20;x<=80;x+=10)cl.push([x,16],[x,60]);for(let z=24;z<=54;z+=10)cl.push([16,z],[84,z]);for(const z of[24,32,46,54])cl.push([50,z]);for(const x of[26,38,62,74])cl.push([x,38]);
+ cl.forEach(([x,z],k)=>{const red=k%3===2;lightDef(x,3.3,z,red?0xff3322:0xe8f0ff,red?.6:.85,red);slab(x-.5,z-.5,x+.5,z+.5,WH-.06,WH,red?M.strip:M.lamp,false)});
+ slab(14,14.2,86,14.8,3.0,3.5,M.pipe,false);slab(14,61.2,86,61.8,3.0,3.5,M.pipe,false);slab(14.2,14,14.8,62,3.0,3.5,M.pipe,false);slab(85.2,14,85.8,62,3.0,3.5,M.pipe,false);
+ for(const z of[15.2,60.8])slab(14,z-.05,86,z+.05,3.25,3.35,M.pipe,false);for(const x of[15.2,84.8])slab(x-.05,14,x+.05,62,3.25,3.35,M.pipe,false);
+ for(const[x,z]of[[14.4,14.4],[85.6,14.4],[14.4,61.6],[85.6,61.6],[48.4,22],[51.6,54]]){const e=new T.Mesh(new T.CylinderGeometry(.09,.09,.5,8),new T.MeshStandardMaterial({color:0xaa1111}));e.position.set(x,.8,z);sc.add(e)}
+ for(const[x,z,a]of[[15,15,Math.PI*.25],[85,15,Math.PI*.75],[15,61,Math.PI*-.25],[85,61,Math.PI*1.25],[50,20,Math.PI],[50,56,0]])camMesh(x,z,3.2,a)}
+for(const i of[CELL173,CELL096]){const D=doors[i],px=D.cx+D.nx*.3,pz=D.cz-(D.w/2+1),m=new T.Mesh(new T.BoxGeometry(.15,.7,.5),new T.MeshStandardMaterial({color:0x222,emissive:0x330000}));m.position.set(px,1.3,pz);sc.add(m);walls.push({x1:px-.15,x2:px+.15,z1:pz-.3,z2:pz+.3});occ.push(m);panels[i]={m,x:px,z:pz}}
+const SP=R.map((r,i)=>i).filter(i=>i!==0&&R[i].type!=='cell'),NAMES=R.map(r=>r.name);
+function spawnIn(E,r,rad){const q=R[r];for(let n=0;n<300;n++){E.x=q.x0+1.5+Math.random()*(q.x1-q.x0-3);E.z=q.z0+1.5+Math.random()*(q.z1-q.z0-3);if(!solidAt(E.x,E.z,rad)&&reachable(E.x,E.z))return}}
+function itemSpot(r){const q=R[r];for(let n=0;n<300;n++){const x=q.pin.x+(Math.random()*5-2.5),z=q.pin.z+(Math.random()*5-2.5);if(!solidAt(x,z,.6)&&reachable(x,z)&&roomOf(x,z)===r)return{x,z}}return q.pin}
+
+// SCP-173 (modelo con textura procedural de hormigón envejecido, v\u00e9rtices irregulares y decal facial seg\u00fan la referencia clásica)
+const lerp=(a,b,t)=>a+(b-a)*t;
+function ctx2(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return[c,c.getContext('2d')]}
+function rough(g,a){const p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),n=Math.sin(x*37.1+y*17.3)*Math.cos(z*29.7+y*11.1);p.setXYZ(i,x+n*a,y+n*a*.8,z+n*a)}g.computeVertexNormals();return g}
+const[c1,g1]=ctx2(128,128);g1.fillStyle='#b9a584';g1.fillRect(0,0,128,128);
+for(let i=0;i<900;i++){const k=60+Math.random()*120|0;g1.fillStyle='rgba('+k+','+(k-8)+','+(k-24)+',.25)';g1.fillRect(Math.random()*128,Math.random()*128,1+Math.random()*3,1+Math.random()*3)}
+for(let i=0;i<14;i++){g1.fillStyle='rgba('+(40+Math.random()*40|0)+','+(60+Math.random()*40|0)+','+(90+Math.random()*50|0)+',.14)';g1.fillRect(Math.random()*128,Math.random()*128,6+Math.random()*10,30+Math.random()*60)}
+const skinT=new T.CanvasTexture(c1);skinT.wrapS=skinT.wrapT=T.RepeatWrapping;skinT.repeat.set(2,2);
+const sm=new T.MeshStandardMaterial({map:skinT,bumpMap:skinT,bumpScale:2,roughness:1});
+const[c2,g2]=ctx2(256,320);g2.fillStyle='#8c1414';g2.beginPath();g2.moveTo(70,40);g2.lineTo(120,10);g2.lineTo(170,60);g2.lineTo(200,150);g2.lineTo(180,250);g2.lineTo(90,260);g2.lineTo(55,150);g2.closePath();g2.fill();
+for(const x of[75,181])for(let r=34;r>4;r-=6){g2.fillStyle=(r/6|0)%2?'#6f8f2c':'#a6c443';g2.beginPath();g2.arc(x,128,r,0,6.3);g2.fill()}
+g2.fillStyle='#14100a';g2.fillRect(108,100,40,95);for(const x of[60,196]){g2.fillStyle='#1a1410';g2.beginPath();g2.ellipse(x,210,30,36,0,0,6.3);g2.fill()}
+g2.fillStyle='#223';g2.beginPath();g2.ellipse(128,228,34,16,0,0,6.3);g2.fill();g2.fillStyle='#c9c9b4';for(let i=0;i<9;i++){g2.beginPath();g2.moveTo(100+i*7,222);g2.lineTo(103+i*7,236);g2.lineTo(106+i*7,222);g2.fill()}
+const s173=new T.Group(),ud173={},mk=(geo,x,y,z,sx=1,sy=1,sz=1,par=s173,mt=sm)=>{const o=new T.Mesh(geo,mt);o.position.set(x,y,z);o.scale.set(sx,sy,sz);par.add(o);return o};
+mk(rough(new T.SphereGeometry(.19,14,10),.012),0,.74,0,1.1,.85,.85);
+mk(rough(new T.CylinderGeometry(.2,.17,.78,14,4),.015),0,1.12,0,1,1,.66);
+mk(new T.CylinderGeometry(.075,.09,.26,10),0,1.6,.01);
+const hd173=new T.Group();hd173.position.set(0,1.88,.02);s173.add(hd173);
+mk(rough(new T.SphereGeometry(.2,22,16),.01),0,0,0,.86,1.18,.92,hd173);
+const dec=mk(new T.PlaneGeometry(.3,.375),0,-.01,.178,1,1,1,hd173,new T.MeshStandardMaterial({map:new T.CanvasTexture(c2),transparent:true,roughness:1}));
+mk(new T.SphereGeometry(.03,8,6),.172,.03,0,1,1,1,hd173,new T.MeshStandardMaterial({color:0xaa1111}));
+for(const sg of[-1,1]){mk(rough(new T.CylinderGeometry(.1,.075,.42,9),.01),sg*.1,.35+.38,0,1,1,.9);mk(rough(new T.CylinderGeometry(.075,.06,.4,9),.01),sg*.1,.3,.04,1,1,.9);mk(new T.SphereGeometry(.075,8,6),sg*.1,.08,.08,1,.5,1.5);
+ const sh=new T.Group();sh.position.set(sg*.27,1.4,0);s173.add(sh);mk(rough(new T.CylinderGeometry(.06,.05,.4,8),.008),0,-.2,0,1,1,1,sh);
+ const el=new T.Group();el.position.y=-.4;el.rotation.x=-1.35;sh.add(el);mk(rough(new T.CylinderGeometry(.052,.045,.38,8),.008),0,-.19,0,1,1,1,el);mk(new T.SphereGeometry(.065,8,6),0,-.4,0,1,1,1,el);
+ ud173[sg<0?'aL':'aR']=sh}
+ud173.hd=hd173;ud173.tilt=.12;s173.userData=ud173;sc.add(s173);
+for(let i=0;i<doors.length;i++){const D=doors[i],[c,g]=ctx2(256,64);g.fillStyle=i===CELL173||i===CELL096?'#2a0f0f':'#10161a';g.fillRect(0,0,256,64);g.fillStyle=i<R.length?'#ffb347':'#ff6655';g.font='bold 20px monospace';
+ g.fillText(i<R.length?(R[i].type==='cell'?'SCP-'+(i===CELL173?'173':'096')+'  NIVEL 4':'R-'+(100+i*7)):'PUERTA DE SECTOR '+(i-R.length+1),10,26);g.font='13px monospace';g.fillText(i<R.length?R[i].name.toUpperCase():'ACCESO RESTRINGIDO',10,50);
+ const sg=new T.Mesh(new T.PlaneGeometry(1.6,.4),new T.MeshBasicMaterial({map:new T.CanvasTexture(c)}));sg.position.set(D.cx+D.nx*.17,3.05,D.cz+D.nz*.17);sg.rotation.y=Math.atan2(D.nx,D.nz);sc.add(sg)}
+
+// ---------- Audio ----------
+let AC,vol=.6,mute=false;
+function aud(){if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=55;g.gain.value=.05;o.connect(g).connect(AC.destination);o.start();const o2=AC.createOscillator();o2.frequency.value=110.7;const g2=AC.createGain();g2.gain.value=.015;o2.connect(g2).connect(AC.destination);o2.start();AG=g;AG2=g2}}
+let AG,AG2;
+function noise(d,f,gn,pan=0,type='lowpass'){if(!AC||mute)return;const n=AC.sampleRate*d|0,b=AC.createBuffer(1,n,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<n;i++)a[i]=(Math.random()*2-1)*(1-i/n);
+ const s=AC.createBufferSource();s.buffer=b;const fi=AC.createBiquadFilter();fi.type=type;fi.frequency.value=f;const g=AC.createGain();g.gain.value=gn*vol;let node=s.connect(fi).connect(g);
+ if(AC.createStereoPanner){const p=AC.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));node=node.connect(p)}node.connect(AC.destination);s.start()}
+function setMute(){if(AG){AG.gain.value=mute?0:.05*vol/.6;AG2.gain.value=mute?0:.015*vol/.6}}
+
+// ---------- Estado ----------
+let state='menu',P={x:7,z:-6,yaw:Math.PI,pitch:0},keys={},st=100,hp=100,eyes=false,eT=0,cd=0,dry=0,locked=false,drag=false,tm=0,close=0,nearFlag=false,cell=3,r173=1,found=false,inCell=false,contained=false,seen=false,docOn=false,stepT=0,sfx=0,endT=-1,endKind='',cur=null,radT=0,tut=[];
+const e173={x:0,z:0},obj=[];
+const MOD='<b>SCP-173</b> — «La Escultura»';
+function roomOf(x,z){for(let i=0;i<R.length;i++){const r=R[i];if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1)return i}return-1}
+function solidAt(x,z,r){for(const w of walls)if(x>w.x1-r&&x<w.x2+r&&z>w.z1-r&&z<w.z2+r)return true;for(const d of doors)if(d.p<.7&&x>d.x1-r&&x<d.x2+r&&z>d.z1-r&&z<d.z2+r)return true;return false}
+function los(a,b){const n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.25);for(let i=1;i<n;i++)if(solidAt(a.x+(b.x-a.x)*i/n,a.z+(b.z-a.z)*i/n,0))return false;return true}
+const fr=new T.Frustum(),mx=new T.Matrix4();
+let moving=false,dyT=0,dbgOn=false,hb=0;
+let killer=null,mission='173',glasses=false,hasG=false,hasBag=false,termHack=false,alarmT=0,staticT=0,evT=30,lastEv='',r096=1,items=[];
+const e096={x:-50,z:0,st:'CALMA',t:0,ry:0};
+// ===== Navegación compartida (todos los SCP): ruta por salas/puertas; la entidad se acerca, espera y abre la puerta; las bloqueadas (manual/electrónica) solo las rompe quien tenga cap.breaker =====
+function dstate(D){return D.elec?'BLOQ.ELECTRÓNICA':D.locked?'BLOQUEADA':D.p>=1?'ABIERTA':D.p<=0?'CERRADA':D.open?'ABRIÉNDOSE':'CERRÁNDOSE'}
+function occ2(D){for(const E of[P,e173,e096])if(dn(D,E.x,E.z)<.8&&dt_(D,E.x,E.z)<D.w/2+.4)return true;return false}
+// ===== Malla de navegación (celdas de 0,5 m libres a 0,45 m de cualquier pared/mueble; las puertas cuentan como paso) + A* =====
+const GS=.5,GX=0,GZ=0,GW=200,GH=152,blk=new Uint8Array(GW*GH);
+for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const x=GX+(i+.5)*GS,z=GZ+(j+.5)*GS;let b=0;for(const w of walls)if(x>w.x1-.45&&x<w.x2+.45&&z>w.z1-.45&&z<w.z2+.45){b=1;break}blk[j*GW+i]=b}
+const cellOf=(x,z)=>[Math.min(GW-1,Math.max(0,Math.floor((x-GX)/GS))),Math.min(GH-1,Math.max(0,Math.floor((z-GZ)/GS)))];
+function nearestFree(i,j){if(!blk[j*GW+i])return[i,j];for(let r=1;r<8;r++)for(let a=-r;a<=r;a++)for(let b=-r;b<=r;b++){if(Math.max(Math.abs(a),Math.abs(b))!==r)continue;const ii=i+a,jj=j+b;if(ii>=0&&jj>=0&&ii<GW&&jj<GH&&!blk[jj*GW+ii])return[ii,jj]}return[i,j]}
+function hpush(h_,f,n){h_.push([f,n]);let i=h_.length-1;while(i>0){const p=(i-1)>>1;if(h_[p][0]<=h_[i][0])break;[h_[p],h_[i]]=[h_[i],h_[p]];i=p}}
+function hpop(h_){const t=h_[0],l=h_.pop();if(h_.length){h_[0]=l;let i=0;for(;;){const a=2*i+1,b=a+1;let m=i;if(a<h_.length&&h_[a][0]<h_[m][0])m=a;if(b<h_.length&&h_[b][0]<h_[m][0])m=b;if(m===i)break;[h_[m],h_[i]]=[h_[i],h_[m]];i=m}}return t}
+function astar(sx,sz,tx,tz){const[si,sj]=nearestFree(...cellOf(sx,sz)),[ti,tj]=nearestFree(...cellOf(tx,tz)),g=new Float32Array(GW*GH).fill(1e9),par=new Int32Array(GW*GH).fill(-1),cl=new Uint8Array(GW*GH),S=sj*GW+si,Tg=tj*GW+ti,hf=(i,j)=>{const a=Math.abs(i-ti),b=Math.abs(j-tj);return Math.max(a,b)+.414*Math.min(a,b)};g[S]=0;const open=[];hpush(open,hf(si,sj),S);
+ while(open.length){const n=hpop(open)[1];if(cl[n])continue;cl[n]=1;if(n===Tg)break;const ci=n%GW,cj=(n/GW)|0;
+  for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const ii=ci+a,jj=cj+b;if(ii<0||jj<0||ii>=GW||jj>=GH||blk[jj*GW+ii])continue;if(a&&b&&(blk[cj*GW+ii]||blk[jj*GW+ci]))continue;const m=jj*GW+ii,ng=g[n]+(a&&b?1.414:1);if(ng<g[m]){g[m]=ng;par[m]=n;hpush(open,ng+hf(ii,jj),m)}}}
+ const out=[];let n=Tg;if(par[n]<0&&n!==S)return out;while(n!==S&&n>=0){out.push({x:GX+((n%GW)+.5)*GS,z:GZ+(((n/GW)|0)+.5)*GS});n=par[n]}return out.reverse()}
+const reachSet=new Set();{const q=[cellOf(16,38)];reachSet.add(q[0][1]*GW+q[0][0]);while(q.length){const[i,j]=q.pop();for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const ii=i+a,jj=j+b;if(ii<0||jj<0||ii>=GW||jj>=GH||blk[jj*GW+ii]||reachSet.has(jj*GW+ii))continue;if(a&&b&&(blk[j*GW+ii]||blk[jj*GW+i]))continue;reachSet.add(jj*GW+ii);q.push([ii,jj])}}}
+const reachable=(x,z)=>{const c=cellOf(x,z);return reachSet.has(c[1]*GW+c[0])};
+function doorAt(x,z){for(let k=0;k<doors.length;k++){const D=doors[k];if(dn(D,x,z)<.55&&dt_(D,x,z)<D.w/2+.2)return k}return-1}
+// nav: ruta A* cacheada (se recalcula cada .35 s desde la posición actual). Ante una puerta cerrada en la ruta: se detiene a ~1,3 m, espera/abre y cruza.
+function nav(E,t,dt,sp,cap){if(solidAt(E.x,E.z,.4)){const s0=Math.min(.15,2*dt);out:for(const rr of[.15,.3,.45])for(let k=0;k<16;k++){const a=k*.3927,c=Math.cos(a),s=Math.sin(a);if(!solidAt(E.x+c*rr,E.z+s*rr,.4)){E.x+=c*s0;E.z+=s*s0;break out}}}E.pt=(E.pt||0)-dt;if(E.pt<=0||!E.pp||!E.pp.length){E.pp=astar(E.x,E.z,t.x,t.z);E.pt=.35}
+ const pp=E.pp;while(pp.length>1&&Math.hypot(pp[0].x-E.x,pp[0].z-E.z)<.3)pp.shift();if(!pp.length)return'blocked';
+ for(let n=0;n<Math.min(6,pp.length);n++)for(let k=0;k<doors.length;k++){const D=doors[k];if(!(dn(D,pp[n].x,pp[n].z)<.55&&dt_(D,pp[n].x,pp[n].z)<D.w/2+.2))continue;const dz0=dn(D,E.x,E.z);
+  if(D.p<.7&&dz0<1.3&&dt_(D,E.x,E.z)<D.w/2+.6){
+   if(D.locked||D.elec){if(cap.breaker){E.bt=(E.bt||0)+dt;if(E.bt>2.5){D.locked=D.elec=false;D.open=true;E.bt=0;noise(.7,120,1)}}return'blocked'}
+   if(!D.open){E.ot=(E.ot||0)+dt;if(E.ot>cap.ot){D.open=true;E.ot=0}}return'wait'}}
+ const w=pp[0],dx=w.x-E.x,dz=w.z-E.z,dd=Math.hypot(dx,dz),stp=Math.min(dd,sp*dt),a=Math.atan2(dz,dx);
+ for(const o of[0,.5,-.5,1,-1])if(tryStep(Math.cos(a+o)*stp,Math.sin(a+o)*stp,E)){E.ry=Math.atan2(dx,dz);E.ot=0;E.sk=0;return'moved'}
+ E.sk=(E.sk||0)+dt;E.pt=0;if(E.sk>.4){const[c0,c1]=nearestFree(...cellOf(E.x,E.z));E.x+=(GX+(c0+.5)*GS-E.x)*Math.min(1,dt*3);E.z+=(GZ+(c1+.5)*GS-E.z)*Math.min(1,dt*3)}return'blocked'}
+function sees(x,y,z){if(eyes)return false;cam.updateMatrixWorld();mx.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);fr.setFromProjectionMatrix(mx);_t.set(x,y,z);if(!fr.containsPoint(_t))return false;_o.copy(cam.position);_t.sub(_o);const L=_t.length();rc.set(_o,_t.normalize());rc.far=L-.15;return rc.intersectObjects(occ,false).length===0}
+// ===== SCP-096 (alto 2,6 m, extremidades largas, articulado; pose sentada/de pie por interpolaci\u00f3n) =====
+const skin9=new T.MeshStandardMaterial({color:0xe6d2ca,roughness:.85}),J={leg:[],arm:[]};
+function limb(r1,r2,len){const m=new T.Mesh(new T.CylinderGeometry(r1,r2,len,8),skin9);m.position.y=-len/2;return m}
+const s096=new T.Group();J.hips=new T.Group();s096.add(J.hips);J.torso=new T.Group();J.hips.add(J.torso);
+{const t=new T.Mesh(new T.CylinderGeometry(.13,.1,.85,10),skin9);t.position.y=.42;t.scale.z=.7;J.torso.add(t);const p=new T.Mesh(new T.SphereGeometry(.13,8,6),skin9);p.scale.set(1.1,.7,.8);J.hips.add(p)}
+J.neck=new T.Group();J.neck.position.y=.85;J.torso.add(J.neck);{const n=new T.Mesh(new T.CylinderGeometry(.04,.05,.14,8),skin9);n.position.y=.07;J.neck.add(n)}
+J.head=new T.Group();J.head.position.y=.14;J.neck.add(J.head);{const hm=new T.Mesh(new T.SphereGeometry(.12,14,12),skin9);hm.scale.set(.85,1.25,.95);hm.position.y=.14;J.head.add(hm)}
+const[c9,g9]=ctx2(96,128);g9.fillStyle='#2a0f0f';g9.beginPath();g9.ellipse(48,40,16,12,0,0,6.3);g9.fill();for(const x of[30,66]){g9.fillStyle='#3a1a1a';g9.beginPath();g9.ellipse(x,28,10,7,0,0,6.3);g9.fill();g9.fillStyle='#e8e4dc';g9.beginPath();g9.ellipse(x,28,5,3.5,0,0,6.3);g9.fill()}
+g9.fillStyle='#4a1414';g9.fillRect(36,42,24,80);g9.fillStyle='#1c0707';g9.fillRect(40,46,16,72);
+const face9=new T.Mesh(new T.PlaneGeometry(.17,.23),new T.MeshStandardMaterial({map:new T.CanvasTexture(c9),transparent:true,roughness:.9}));face9.position.set(0,.1,.112);J.head.add(face9);
+const bag9=new T.Mesh(new T.BoxGeometry(.27,.35,.27),new T.MeshStandardMaterial({color:0x3a2c1c,roughness:1}));bag9.position.set(0,.9,0);bag9.visible=false;J.head.add(bag9);
+for(let s=0;s<2;s++){const sg=s?-1:1,th=new T.Group();th.position.set(sg*.08,0,0);J.hips.add(th);th.add(limb(.06,.045,.65));const kn=new T.Group();kn.position.y=-.65;th.add(kn);kn.add(limb(.045,.035,.65));
+ const ft=new T.Mesh(new T.BoxGeometry(.07,.04,.22),skin9);ft.position.set(0,-.66,.07);kn.add(ft);J.leg.push({th,kn});
+ const up=new T.Group();up.position.set(sg*.17,.78,0);J.torso.add(up);up.add(limb(.045,.035,.7));const el=new T.Group();el.position.y=-.7;up.add(el);el.add(limb(.035,.028,.7));
+ const hd=new T.Group();hd.position.y=-.7;el.add(hd);const pm=new T.Mesh(new T.BoxGeometry(.07,.1,.025),skin9);pm.position.y=-.05;hd.add(pm);
+ for(let f=0;f<4;f++){const fg=new T.Mesh(new T.CylinderGeometry(.008,.005,.2,5),skin9);fg.position.set((f-1.5)*.017,-.2,0);hd.add(fg)}J.arm.push({up,el})}
+s096.visible=false;sc.add(s096);
+function pose096(u,t,cry,head,ph,amp,fury,flail){J.hips.position.y=lerp(.17,1.32,u);
+ J.torso.rotation.x=lerp(.8,.28,u)+fury*.35;J.torso.rotation.z=cry*Math.sin(t*13)*.025+flail*Math.sin(t*35)*.12;
+ J.neck.rotation.x=lerp(.35,.15,u);J.head.rotation.x=lerp(.35,.1,u)-head*.7+cry*Math.sin(t*21)*.03;J.head.rotation.z=cry*(Math.sin(t*17+1)*.04+Math.sin(t*.7)*.03)+fury*Math.sin(t*9)*.12;J.head.rotation.y=head*Math.sin(t*.9)*.2;
+ for(let s=0;s<2;s++){const sg=s?-1:1,w=s?-ph:ph,L=J.leg[s],A=J.arm[s];
+  L.th.rotation.x=lerp(-1.25,0,u)+w*amp*.5;L.kn.rotation.x=lerp(1.45,.05,u)+Math.max(0,-w)*amp*.7;L.th.rotation.z=sg*lerp(.2,.02,u);
+  A.up.rotation.x=lerp(-.35,.1,u)-w*amp*.35+flail*Math.sin(t*28+s*2)*.9+cry*Math.sin(t*11+s)*.03;A.el.rotation.x=lerp(-2.6,-.15,u)-fury*.5;A.up.rotation.z=sg*lerp(-.15,.07,u)}}
+function setup096(){const pool=SP.slice().sort(()=>Math.random()-.5);r096=pool[0];spawnIn(e096,r096,.8);Object.assign(e096,{st:'CALMA',t:0,ry:Math.random()*6.28,bt:0,ot:0,up:0,nx:8,act:'',at:0,wp:null,sb:0});
+ bag9.position.y=.9;bag9.visible=false;s096.rotation.set(0,0,0);e173.x=-50;e173.z=0;s173.visible=false;s096.visible=true;items.forEach(it=>sc.remove(it.m));items=[];
+ [[pool[1],'gafas',0x33ddff],[pool[2],'bolsa',0x886644]].forEach(([r,id,c])=>{const q=itemSpot(r),m=new T.Mesh(new T.BoxGeometry(.4,.15,.3),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.5}));m.position.set(q.x,.12,q.z);sc.add(m);items.push({id,m,x:q.x,z:q.z,got:false})});
+ glasses=hasG=hasBag=false;$('gl').style.opacity=0;obj.length=0;obj.push({t:'Localizar y recoger las gafas protectoras'},{t:'Equipar las gafas (G)'},{t:'Recoger la bolsa de contención'},{t:'Colocar la bolsa a SCP-096 sin ver su rostro'},{t:'Guiarlo a '+NAMES[cell]+' y sellar la celda'});showObj();
+ tut=[[1,'SCP-096 se ha escapado. NO mires su rostro. Busca las gafas protectoras y la bolsa de contención.'],[25,'Consulta el terminal (E). Equipa las gafas con G antes de acercarte a él.']]}
+function update096(dt){const E=e096,d=Math.hypot(E.x-P.x,E.z-P.z),bagged=E.st==='EMBOLSANDO'||E.st==='EMBOLSADO'||E.st==='CONTENIDO',pan=((E.x-P.x)*Math.cos(P.yaw)-(E.z-P.z)*Math.sin(P.yaw))/(d||1);
+ let mv=false,cry=0,upT=0,head=0,fury=0,flail=0,spd=0;face9.visible=!glasses&&!bagged;bag9.visible=bagged;E.t+=dt;
+ if(E.st==='CALMA'){cry=1;E.nx-=dt;
+  if(E.nx<=0&&!E.act){E.nx=16+Math.random()*30;const r=Math.random();E.act=r<.5?'cabeza':r<.82?'parcial':'camina';E.at=0;E.wp=null}
+  if(E.act){E.at+=dt;
+   if(E.act==='cabeza'){head=1;if(E.at>3.5)E.act=''}
+   else if(E.act==='parcial'){upT=.5;if(E.at>6)E.act=''}
+   else{upT=1;if(E.at>2.5){if(!E.wp){const rm=roomOf(E.x,E.z);E.wp={x:E.x,z:E.z};for(let k=0;k<8;k++){const x=E.x+(Math.random()*8-4),z=E.z+(Math.random()*6-3);if(roomOf(x,z)===rm&&!solidAt(x,z,.7)){E.wp={x,z};break}}}
+    if(E.up>.85&&Math.hypot(E.wp.x-E.x,E.wp.z-E.z)>.6&&E.at<40){mv=nav(E,E.wp,dt,.9,{ot:1})==='moved';spd=.9}else if(E.up>.85){E.act='';E.nx=22+Math.random()*25}}}}
+  if(d<7&&!mv){let df=Math.atan2(P.x-E.x,P.z-E.z)-E.ry;df=Math.atan2(Math.sin(df),Math.cos(df));E.ry+=df*Math.min(1,dt*.9);
+   if(!glasses&&d<9&&Math.abs(df)<.9&&sees(E.x,lerp(.95,2.5,E.up),E.z)){E.st='PERTURBADO';E.t=0;E.act='';noise(.9,300,1.2);radio('¡Has visto su rostro! ¡CORRE!',5000)}}}
+ else if(E.st==='PERTURBADO'){upT=1;flail=1;let a=Math.atan2(P.x-E.x,P.z-E.z)-E.ry;E.ry+=Math.atan2(Math.sin(a),Math.cos(a))*Math.min(1,dt*4);if(Math.random()<.2)noise(.5,200+Math.random()*900,1,0,'bandpass');if(E.t>2.8){E.st='FURIA';E.t=0}}
+ else if(E.st==='FURIA'){upT=1;fury=1;mv=E.up>.9&&nav(E,P,dt,9.5,{ot:.3,breaker:true})==='moved';spd=mv?9.5:0;if(d<1.4&&los(P,E))kill(E);if(E.t>60){E.st='CALMA';E.t=0;E.nx=10;radio('SCP-096 parece agotado y se ha encogido en el suelo.',5000)}
+  sfx-=dt;if(mv&&sfx<=0){sfx=.2;noise(.1,500,Math.min(1.3,3/(1+d*.4)),pan)}hb-=dt;if(hb<=0){hb=1.3;noise(.9,250+Math.random()*500,Math.min(1.2,4/(1+d*.4)),0,'bandpass')}}
+ else if(E.st==='EMBOLSANDO'){flail=.7;bag9.position.y=lerp(.9,.14,Math.min(1,E.t/1.5));if(E.t>1.8){E.st='EMBOLSADO';radio('SCP-096 embolsado. Llévalo a la celda; te seguir\u00e1.',5000)}}
+ else if(E.st==='EMBOLSADO'){upT=1;bag9.position.y=.14;if(E.up>.85&&d>2.6){mv=nav(E,P,dt,2,{ot:.8})==='moved';spd=2}}
+ else{bag9.position.y=.14}
+ E.up+=(upT-E.up)*Math.min(1,dt*(fury||flail?5:1.4));E.ph=(E.ph||0)+dt*spd*(spd>4?2.2:3.2);
+ if(cry&&d<32){E.sb-=dt;if(E.sb<=0){E.sb=1.3+Math.random()*3;const g=Math.min(.9,2.4/(1+d*.4)),n=2+(Math.random()*3|0);for(let k=0;k<n;k++)setTimeout(()=>noise(.25,520+Math.random()*260,g*.7,pan,'bandpass'),k*300);if(Math.random()<.35)noise(1,230,g*.6,pan,'bandpass')}}
+ s096.position.set(E.x,0,E.z);s096.rotation.y=E.ry;pose096(E.up,tm,cry,head,Math.sin(E.ph),mv?(spd>4?1:.5):0,fury,flail)}
+// ===== SCP-079: eventos aleatorios (intervalos variables, pesos, niveles de intensidad, sin repetir el último) =====
+const EV=[['flicker',3,0],['luzoff',3,0],['luzon',1,0],['msg',2,0],['abre',2,1],['cierra',2,1],['bloquea',2,1],['desbloquea',1,1],['alarma',1,2],['terminal',1,1]];
+function nearDoor(){let b=0,bd=1e9;doors.forEach((D,i)=>{const dd=Math.hypot(D.cx-P.x,D.cz-P.z);if(dd<bd){bd=dd;b=i}});return b}
+function ev079(dt){if(alarmT>tm&&tm%.8<dt)noise(.45,650,.5,0,'bandpass');ren.domElement.style.filter=staticT>tm?'contrast(1.6) brightness('+(.5+Math.random())+')':'';
+ evT-=dt;if(evT>0)return;evT=28+Math.random()*45;const lvl=tm<50?0:tm<150?1:2,pool=EV.filter(e=>e[2]<=lvl&&e[0]!==lastEv);let w=pool.reduce((a,e)=>a+e[1],0)*Math.random(),ev=pool[0];for(const e of pool){w-=e[1];if(w<=0){ev=e;break}}
+ const k=ev[0];lastEv=k;const rr=Math.random()<.6?roomOf(P.x,P.z):(Math.random()*R.length|0),li=rr>=0?rr:R.length+(Math.random()*(lights.length-R.length)|0);
+ if(k==='flicker'){lights[li].fl=tm+4+Math.random()*4;noise(.3,60,.6)}
+ else if(k==='luzoff'){lights[li].off=tm+6+Math.random()*8;noise(.4,80,.7)}
+ else if(k==='luzon'){lights.forEach(l=>{l.off=0;l.boost=tm+1.2});noise(.3,3000,.5)}
+ else if(k==='msg'){const m=['SCP-079: ESTOY VIENDO.','Cámaras de seguridad: SEÑAL PERDIDA.','Aviso: contención restablecida. (FALSO)','SCP-079: ¿POR QUÉ HUYES?'];radio(m[Math.random()*m.length|0],5000);staticT=tm+1.5}
+ else if(k==='abre'){const D=Math.random()<.5?doors[nearDoor()]:doors[mission==='096'?r096:r173];if(!D.locked){D.elec=false;D.open=true;noise(.4,400,.4)}}
+ else if(k==='cierra'){const D=doors[nearDoor()];if(!D.locked&&D.open)D.open=false}
+ else if(k==='bloquea'){const D=doors[nearDoor()];if(!D.locked){D.elec=true;D.open=false;D.elt=tm+25;noise(.3,200,.6)}}
+ else if(k==='desbloquea'){doors.forEach(D=>{if(D.elec&&Math.random()<.7)D.elec=false})}
+ else if(k==='alarma'){alarmT=tm+9;for(let i=R.length;i<lights.length;i++)lights[i].fl=alarmT;radio('ALERTA: protocolo de emergencia activado.',4000)}
+ else if(k==='terminal'){termHack=true;radio('Terminal NTF-01: acceso remoto detectado.',4000)}}
+// Visibilidad real: raycast cámara→(cabeza, torso, pies) contra la geometría opaca (paredes, cajas, puertas). Si algún punto es visible, está observado.
+const rc=new T.Raycaster(),_o=new T.Vector3(),_t=new T.Vector3();
+function seenRay(){_o.copy(cam.position);for(const y of[1.6,1,.3]){_t.set(e173.x,y,e173.z).sub(_o);const L=_t.length();rc.set(_o,_t.normalize());rc.far=L-.15;if(rc.intersectObjects(occ,false).length===0)return true}return false}
+function tryStep(dx,dz,E=e173){const nx=E.x+dx,nz=E.z+dz;if(!solidAt(nx,nz,.4)){E.x=nx;E.z=nz;return 1}if(!solidAt(nx,E.z,.4)){E.x=nx;return 1}if(!solidAt(E.x,nz,.4)){E.z=nz;return 1}return 0}
+function kill(E){if(state!=='play')return;killer=E||e173;state='dying';dyT=0;e173.st='ATAQUE';moving=false;keys={};eyes=false;document.exitPointerLock&&document.exitPointerLock();noise(.6,120,1.2);noise(.15,2500,.6,0,'highpass');$('doc').style.display='none';$('tab').style.display='none'}
+function move173(dt,vis,d){moving=false;
+ if(vis){e173.st='OBSERVADO';return}
+ if(d<1.2&&los(P,e173)){kill();return}
+ const r=nav(e173,P,dt,8,{ot:1.4});e173.st=r==='moved'?'NO_OBSERVADO':r==='wait'?'ABRIENDO_PUERTA':'BLOQUEADO';if(r!=='moved')return;moving=true;s173.rotation.y=e173.ry;
+ sfx-=dt;if(sfx<=0){sfx=.07+Math.random()*.22;const rx=e173.x-P.x,rz=e173.z-P.z,pan=(rx*Math.cos(P.yaw)-rz*Math.sin(P.yaw))/(d||1),g=Math.min(1.4,3.2/(1+d*.5));noise(.18+Math.random()*.3,180+Math.random()*350,g*(.5+Math.random()*.6),pan,'bandpass');noise(.3,120,g*.7,pan);if(Math.random()<.3)noise(.03,3200,g*.5,pan,'highpass')}}
+function dying(dt){dyT+=dt;const K=killer||e173,dx=K.x-P.x,dz=K.z-P.z;let df=Math.atan2(-dx,-dz)-P.yaw;df=Math.atan2(Math.sin(df),Math.cos(df));P.yaw+=df*Math.min(1,dt*10);P.pitch+=(.5-P.pitch)*Math.min(1,dt*6);
+ cam.position.set(P.x,Math.max(.35,1.65-dyT*1.6),P.z);cam.rotation.set(P.pitch,P.yaw,Math.sin(dyT*9)*.08*dyT);$('fear').style.opacity=1;if(dyT>.35)$('eyes').style.opacity=Math.min(1,dyT-.35);
+ for(const l of lights)l.L.intensity=Math.random()<.4?l.b*.1:l.b;if(dyT>1.5)end('dead')}
+function observed(){if(eyes)return false;cam.updateMatrixWorld();mx.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);fr.setFromProjectionMatrix(mx);
+ if(Math.hypot(e173.x-P.x,e173.z-P.z)>40||!fr.containsPoint(new T.Vector3(e173.x,1,e173.z)))return false;return seenRay()}
+
+function radio(t,ms=6000){const r=$('radio');r.textContent='📻 '+t;r.style.display='block';noise(.25,2500,.15,0,'bandpass');clearTimeout(radT);radT=setTimeout(()=>r.style.display='none',ms)}
+function showObj(){const L=obj.map(o=>(o.d?'[✔] ':'[ ] ')+o.t);$('obj').innerHTML='<b>MISIÓN: '+'SCP-'+mission+'</b><br>'+L.join('<br>');$('tab').textContent='INVENTARIO / OBJETIVOS\n\n'+L.join('\n')+'\n\nEquipo: '+(hasG?'Gafas'+(glasses?' (equipadas)':'')+', ':'')+(hasBag?'Bolsa, ':'')+'Linterna'+(flOn?' (ON)':' (OFF)')+', pistola de servicio (sin munición necesaria contra SCP-173)\nDocumentos: '+(docRead?'Informe de terminal NTF-01':'ninguno')+'\n\nREGLAS DE SCP-173: se mueve solo cuando nadie lo observa. Si parpadeas, avanza. Tu parpadeo es una herramienta: planifica.'}
+let docRead=false;
+function done(i){if(!obj[i].d){obj[i].d=1;showObj()}}
+
+function startMission(){
+ $('eyes').style.opacity=0;$('fear').style.opacity=0;$('doc').style.display='none';$('tab').style.display='none';$('radio').style.display='none';clearTimeout(radT);docOn=false;keys={};moving=false;e173.st='OBSERVADO';s173.position.y=0;s173.rotation.z=0;flOn=true;fl.intensity=1.3;hb=0;sfx=0;
+ lights.forEach(l=>{l.off=0;l.fl=0;l.boost=0});evT=30;lastEv='';termHack=false;alarmT=0;staticT=0;ren.domElement.style.filter='';killer=null;
+ cell=mission==='096'?CELL096:CELL173;r173=SP[Math.random()*SP.length|0];
+ spawnIn(e173,r173,.7);
+ doors.forEach((d,k)=>{d.open=false;d.locked=false;d.elec=false;d.p=0;d.m.position.y=1.3});doors[cell].open=true;doors[cell].p=1;doors[cell].m.position.y=3.9;
+ for(const r in panels)panels[r].m.material.emissive.setHex(r==cell?0x004400:0x330000);
+ P={x:START.x,z:START.z,yaw:START.yaw,pitch:0};st=100;hp=100;eyes=false;eT=0;cd=0;dry=0;tm=0;close=0;found=false;contained=false;docRead=false;endT=-1;nearFlag=false;
+ obj.length=0;obj.push({t:'Localizar a SCP-173 (consulta el terminal NTF)'},{t:'Conducir a SCP-173 hasta '+NAMES[cell]},{t:'Salir de la celda y sellarla desde el panel de seguridad'});showObj();
+ tut=[[1,'Agente NTF, bienvenido. Usa W/A/S/D para moverte y el ratón para mirar. Acércate al terminal (E).'],[16,'Recuerda: SCP-173 solo se mueve si NADIE lo mira. Mantén la vista sobre él. ESPACIO cierra tus ojos, pero él avanzará.'],[34,'Las puertas amarillas se abren con E. Las bloqueadas (rojas) no se abren; SCP-079 puede manipularlas.']];if(mission==='096')setup096();else{s096.visible=false;e096.x=-50;e096.z=0;e096.st='CALMA';items.forEach(it=>sc.remove(it.m));items=[];glasses=hasG=hasBag=false;$('gl').style.opacity=0;s173.visible=true}
+}
+function show(id){document.querySelectorAll('.scr').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on');$('hud').style.display=(id?'none':'block')}
+function begin(){aud();state='play';show(null);ren.domElement.requestPointerLock&&ren.domElement.requestPointerLock()}
+function end(kind){if(state==='end')return;state='end';endKind=kind;document.exitPointerLock&&document.exitPointerLock();
+ const mins=tm/60;let score=100-close*7-Math.max(0,mins-6)*3;if(kind!=='ok')score=Math.min(score,20);
+ const g=kind==='dead'?'—':score>=90?'S':score>=75?'A':score>=60?'B':score>=40?'C':'D';
+ const res={ok:close>2?'CONTENCIÓN EXITOSA CON INCIDENCIAS':'CONTENCIÓN EXITOSA',dead:'MUERTE DEL AGENTE'}[kind];
+ setTimeout(()=>{$('e-t').textContent=res;$('e-t').style.color=kind==='ok'?'#6f6':'#d33';
+ $('e-b').innerHTML=`<b>SCP asignado:</b> SCP-${mission}<br><b>Resultado:</b> ${res}<br><b>Tiempo:</b> ${Math.floor(tm/60)}m ${Math.floor(tm%60)}s<br><b>Objetivos completados:</b> ${obj.filter(o=>o.d).length}/${obj.length}<br><b>Errores críticos (casi alcanzado):</b> ${close}<br><b>Personal superviviente:</b> ${kind==='dead'?'0 (agente KIA)':'1 (agente NTF)'}<br><b>Calificación:</b> ${g}`;show('s-end')},kind==='dead'?250:2500)}
+
+// ---------- Entrada ----------
+const info=(t,b)=>{$('i-t').textContent=t;$('i-b').innerHTML=b;show('s-info')};
+const ASG096='<b>SCP ASIGNADO:</b> SCP-096<br><b>NIVEL DE AMENAZA:</b> EUCLID<br><b>OBJETIVO:</b> Localizar a SCP-096, embolsarlo y encerrarlo.<br><b>PROTOCOLO:</b> Nunca mirar su rostro. Equipar gafas protectoras (G), colocar la bolsa de contención y guiarlo hasta su celda.<br><b>EQUIPO:</b> Linterna, radio.<br><b>INFO:</b> Ante la visión de su rostro entra en furia y persigue sin descanso; rompe puertas bloqueadas.';
+function launch(m){mission=m;startMission();$('asg').innerHTML=m==='096'?ASG096:'<b>SCP ASIGNADO:</b> SCP-173<br><b>NIVEL DE AMENAZA:</b> EUCLID<br><b>OBJETIVO:</b> Localizar la entidad y devolverla a su celda.<br><b>PROTOCOLO:</b> Mantener contacto visual, guiarla con parpadeos controlados, salir de la celda y sellar desde el panel.<br><b>EQUIPO:</b> Linterna, pistola de servicio, radio.<br><b>INFO CONOCIDA:</b> Se desplaza muy rápido cuando no está bajo observación directa. Última ubicación: desconocida (consulta el terminal).';show('s-brief')}
+$('b-m173').onclick=()=>launch('173');$('b-m096').onclick=()=>launch('096');
+$('b-go').onclick=begin;$('b-back').onclick=()=>show('s-menu');$('b-menu').onclick=$('b-emenu').onclick=()=>show('s-menu');
+$('b-ctl').onclick=()=>info('CONTROLES','WASD mover · Ratón mirar (clic y arrastrar si el bloqueo falla) · ESPACIO cerrar ojos · E interactuar · SHIFT correr · F linterna · TAB objetivos · M silencio · ESC pausa');
+$('b-arc').onclick=()=>info('ARCHIVOS SCP','<b>SCP-173</b> (Euclid): estatua de hormigón y barras de refuerzo. Inmóvil mientras es observada; ataca al romperse el contacto visual. Nunca se debe parpadear a la vez que otro agente.<br><br><b>SCP-096</b> (Euclid): humanoide pálido y encorvado. Quien vea su rostro desencadena una furia imparable. Requiere gafas protectoras y bolsa de contención.<br><br><b>SCP-079</b> (Euclid): IA de la instalación; manipula puertas, luces y terminales.<br><br><span style="color:#777">SCP-049 y SCP-106: CLASIFICADOS (no disponibles).</span>');
+$('b-again').onclick=()=>launch(Math.random()<.5?'173':'096');$('b-res').onclick=()=>{state='play';show(null);ren.domElement.requestPointerLock&&ren.domElement.requestPointerLock()};
+$('b-rst').onclick=$('b-retry').onclick=()=>{startMission();begin()};
+function pause(){if(state!=='play')return;state='pause';document.exitPointerLock&&document.exitPointerLock();show('s-pause')}
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===ren.domElement;if(!locked&&state==='play')pause()});
+addEventListener('mousedown',()=>drag=true);addEventListener('mouseup',()=>drag=false);
+addEventListener('mousemove',e=>{if(state!=='play'||!(locked||drag))return;P.yaw-=e.movementX*.0022;P.pitch=Math.max(-1.4,Math.min(1.4,P.pitch-e.movementY*.0022))});
+function blink(d){eyes=true;eT=d;cd=1.4;dry=0;$('eyes').style.opacity=1;noise(.12,1200,.5)}
+addEventListener('keydown',e=>{if(e.code==='Tab')e.preventDefault();keys[e.code]=1;if(state!=='play'){return}
+ if(e.code==='Space'){e.preventDefault();if(!eyes&&cd<=0)blink(.7)}
+ if(e.code==='KeyG'&&mission==='096'&&hasG){glasses=!glasses;$('gl').style.opacity=glasses?1:0;if(glasses)done(1);noise(.1,1500,.4)}if(e.code==='KeyF'){flOn=!flOn;fl.intensity=flOn?1.3:0;noise(.05,3000,.3)}
+ if(e.code==='F3'){e.preventDefault();dbgOn=!dbgOn;if(!dbgOn)$('dbg').textContent=''}if(e.code==='KeyM'){mute=!mute;setMute();radio(mute?'Audio silenciado':'Audio activado',1500)}
+ if(e.code==='KeyE'){if(docOn){docOn=false;$('doc').style.display='none'}else interact()}
+ if(e.code==='Escape')pause()});
+addEventListener('keyup',e=>{keys[e.code]=0;if(e.code==='Tab')$('tab').style.display='none'});
+addEventListener('keydown',e=>{if(e.code==='Tab'&&state==='play'){showObj();$('tab').style.display='block'}});
+
+function interact(){if(!cur)return;
+ if(cur.t==='door'){const d=doors[cur.i];if(d.locked||d.elec){radio(d.elec?'Puerta bloqueada electrónicamente.':'Puerta sellada por protocolo.',2500);noise(.2,300,.4);return}d.open=!d.open;noise(.5,500,.5,0)}
+ else if(cur.t==='item'){const it=cur.it;it.got=true;it.m.visible=false;noise(.1,2000,.4);if(it.id==='gafas'){hasG=true;done(0);radio('Gafas protectoras recogidas. Equípalas con G.',4000)}else{hasBag=true;done(2);radio('Bolsa de contención recogida.',4000)}}
+ else if(cur.t==='scp'){if(Math.hypot(e096.x-P.x,e096.z-P.z)>2.3){radio('Acércate más.',1500);return}if(!glasses){radio('¡Equípate las gafas (G) antes!',3000);return}if(!hasBag){radio('Necesitas la bolsa de contención.',3000);return}hasBag=false;e096.st='EMBOLSANDO';e096.t=0;noise(.6,400,.8);done(3);radio('Colocando la bolsa...',2500)}
+ else if(cur.t==='term'){docRead=true;docOn=true;const dd=$('doc');dd.textContent=`TERMINAL NTF-01 — REGISTRO DE BRECHA\n\nSCP-${mission} abandonó su contención durante un corte de energía.\nÚLTIMO CONTACTO: ${NAMES[((mission==='096'?r096:r173)+(termHack?3:0))%NAMES.length]}.\nCELDA DISPONIBLE: ${NAMES[cell]} (panel de sellado en el pasillo, junto a su puerta).\n\nNOTA: Dos agentes murieron por parpadear a la vez. Mantén la vista fija, guíalo hasta dentro de la celda, sal de ella sin perderlo de vista y séllala.\n\n[E] cerrar`;dd.style.display='block';radio('Terminal consultado. Dirígete a '+NAMES[((mission==='096'?r096:r173)+(termHack?3:0))%NAMES.length]+'.',5000);termHack=false}
+ else if(cur.t==='panel'){const r=cur.i;if(r!=cell){radio('Panel sin energía. Esta celda no es la asignada.',3500);noise(.3,300,.5);return}
+  if(mission==='096'){if(e096.st!=='EMBOLSADO'||roomOf(e096.x,e096.z)!==cell){radio('SCP-096 no está embolsado dentro de la celda.',3500);noise(.3,300,.5);return}if(roomOf(P.x,P.z)===cell){radio('Hay personal dentro de la celda.',3500);return}doors[cell].open=false;doors[cell].locked=true;contained=true;e096.st='CONTENIDO';panels[cell].m.material.emissive.setHex(0x00aa00);noise(.9,200,.8);done(4);radio('SCP-096 contenido.',4000);end('ok');return}
+  if(roomOf(e173.x,e173.z)!==cell){radio('Alerta: SCP-173 NO está en la celda.',3500);noise(.3,300,.5);return}
+  if(roomOf(P.x,P.z)===cell){radio('Error: hay personal dentro de la celda.',3500);return}
+  doors[cell].open=false;doors[cell].locked=true;contained=true;panels[cell].m.material.emissive.setHex(0x00aa00);noise(.9,200,.8);done(2);radio('Celda sellada. SCP-173 contenido. Confirmando...',4000);end('ok')}}
+
+// ---------- Bucle ----------
+const clock=new T.Clock();
+function update(dt){if(state==='dying'){dying(dt);return}if(state!=='play')return;tm+=dt;
+ for(const t of tut)if(!t[2]&&tm>t[0]){t[2]=1;radio(t[1],8000)}ev079(dt);
+ // parpadeo
+ if(eyes){eT-=dt;if(eT<=0){eyes=false;$('eyes').style.opacity=0}}cd-=dt;dry+=dt/11;if(dry>=1&&!eyes)blink(.4);$('bl').style.width=(dry*100)+'%';
+ // movimiento
+ let fx=(keys.KeyW?1:0)-(keys.KeyS?1:0),sx=(keys.KeyD?1:0)-(keys.KeyA?1:0);const mv=fx||sx;const run=keys.ShiftLeft&&st>0&&mv;
+ st=Math.max(0,Math.min(100,st+(run?-22:14)*dt));if(st<=0&&keys.ShiftLeft)st=0;
+ if(mv){const l=Math.hypot(fx,sx),sp=(run?5.2:3.1)*dt,dx=(-Math.sin(P.yaw)*fx+Math.cos(P.yaw)*sx)/l*sp,dz=(-Math.cos(P.yaw)*fx-Math.sin(P.yaw)*sx)/l*sp;
+  if(!solidAt(P.x+dx,P.z,.35))P.x+=dx;if(!solidAt(P.x,P.z+dz,.35))P.z+=dz;stepT-=dt;if(stepT<=0){stepT=run?.3:.5;noise(.08,350,.25)}}
+ cam.position.set(P.x,1.65+(mv?Math.sin(tm*(run?12:8))*.03:0),P.z);cam.rotation.set(P.pitch,P.yaw,0);
+ $('st').style.width=st+'%';
+ // SCP-173
+ const d=Math.hypot(e173.x-P.x,e173.z-P.z),vis=mission==='173'&&observed();
+ if(vis&&!found){found=true;done(0);radio('Contacto visual con SCP-173. No lo pierdas de vista.',5000)}
+ if(mission!=='173'){moving=false}else if(!contained){move173(dt,vis,d);if(d<3&&!nearFlag){close++;nearFlag=true}if(d>6)nearFlag=false;if(d<8){hb-=dt;if(hb<=0){hb=.45+d*.08;noise(.25,90,.9*(1-d/8))}}}else{moving=false;e173.st='CONTENIDO'}
+ if(mission==='096')update096(dt);const ud=s173.userData;s173.position.set(e173.x,moving?Math.abs(Math.sin(tm*28))*.1:0,e173.z);s173.rotation.z=moving?Math.sin(tm*20)*.1:0;ud.aL.rotation.z=moving?.7:.05;ud.aR.rotation.z=moving?-.7:-.05;ud.hd.rotation.z=moving?Math.sin(tm*31)*.18:ud.tilt;s173.rotation.x=moving?.12:0;
+ inCell=roomOf(e173.x,e173.z)===cell;if(mission==='173'&&inCell&&!obj[1].d)done(1);
+ $('hp').style.width=hp+'%';if(dbgOn)$('dbg').textContent=(mission==='096'?'SCP-096: '+e096.st+' · '+Math.hypot(e096.x-P.x,e096.z-P.z).toFixed(1)+' m':'SCP-173: '+e173.st+' · '+d.toFixed(1)+' m · visible='+vis)+(cur&&cur.t==='door'?' · puerta: '+dstate(doors[cur.i]):'');$('fear').style.opacity=mission==='096'?(e096.st==='FURIA'||e096.st==='PERTURBADO'?.8:0):contained?0:Math.max(0,1-d/9)*(vis?.5:.9);
+ // luces
+ for(const l of lights)l.L.intensity=l.off>tm?0:l.boost>tm?l.b*3:l.fl>tm?(Math.random()<.5?0:l.b):l.f&&Math.random()<.03?l.b*.15:l.b;
+ // puertas
+ for(const dr of doors){if(dr.elec&&dr.elt<tm)dr.elec=false;const tgt=dr.open?1:0,mvN=dr.p!==tgt&&!(tgt<dr.p&&occ2(dr));if(mvN&&!dr.mv)noise(.7,260,Math.min(1,3/(1+Math.hypot(dr.cx-P.x,dr.cz-P.z)*.5)),(dr.cx-P.x)*.05);dr.mv=mvN;if(mvN){dr.p+=Math.sign(tgt-dr.p)*Math.min(Math.abs(tgt-dr.p),2.4*dt);dr.m.position.y=1.3+dr.p*2.6}dr.m.material.emissive.setHex(dr.elec||dr.locked?0x771100:0);dr.led.material.color.setHex(dr.elec||dr.locked?0xff2200:dr.p>0&&dr.p<1?0xffaa00:0x22cc55)}
+ // interacción
+ cur=null;let best=2.6;const fw={x:-Math.sin(P.yaw),z:-Math.cos(P.yaw)};
+ const cand=[];doors.forEach((dr,i)=>cand.push({t:'door',i,x:dr.cx,z:dr.cz,l:dr.locked||dr.elec?'Puerta bloqueada':dr.open?'E: Cerrar puerta':'E: Abrir puerta'}));
+ cand.push({t:'term',x:TERM.x,z:TERM.z,l:'E: Consultar terminal'});for(const it of items)if(!it.got)cand.push({t:'item',it,x:it.x,z:it.z,l:'E: Recoger '+it.id});if(mission==='096'&&e096.st==='CALMA')cand.push({t:'scp',x:e096.x,z:e096.z,l:'E: Colocar bolsa de contención'});for(const r in panels)cand.push({t:'panel',i:+r,x:panels[r].x,z:panels[r].z,l:'E: Panel de sellado de celda'});
+ for(const c of cand){const dx=c.x-P.x,dz=c.z-P.z,dd=Math.hypot(dx,dz);if(dd<best&&(dx*fw.x+dz*fw.z)/dd>.3){best=dd;cur=c}}
+ $('prompt').textContent=cur&&!docOn?cur.l:''}
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);update(dt);poolLights(dt);ren.render(sc,cam)}
+show('s-menu');cam.position.set(7,1.65,-6);loop();
+</script></body></html>
